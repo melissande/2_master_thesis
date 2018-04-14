@@ -77,34 +77,28 @@ def DrawRandomLine(img,segments,line_width_min,line_width_max,alpha):
     box = [min(pts[:,0]),min(pts[:,1]), max(pts[:,0])-min(pts[:,0]), max(pts[:,1]) - min(pts[:,1]) ]
     return img,segments,box
 
-def generateSegmentation(canvas_size, n_max,data_size, alpha = 0.5, noise_types=[]):
-    canvas = background_intensity * np.ones((data_size,canvas_size,canvas_size,3))
-    segments = np.zeros((data_size,canvas_size,canvas_size,3))
+def generateSegmentation(canvas_size, n_max, alpha = 0.5, noise_types=[]):
+    canvas = background_intensity * np.ones((canvas_size,canvas_size,3))
+    segments = np.zeros((canvas_size,canvas_size,3))
     boxes = []
     labels = []
-    for i in range(data_size):
-#         for _ in range(np.random.choice(range(n_max))):
-#             canvas[i],segments[i],b = DrawRandomCircle(canvas[i],segments[i],r_min,r_max,alpha)
-#             boxes += [b]
-#             labels += [1]
-        for _ in range(np.random.choice(range(n_max))):
-            canvas[i],segments[i],b = DrawRandomSquare(canvas[i],segments[i],r_min,r_max,alpha)
-            boxes += [b]
-            labels += [2]
-        for _ in range(np.random.choice(range(n_max))):
-            canvas[i],segments[i],b = DrawRandomLine(canvas[i],segments[i],line_width_min,line_width_max,alpha)
-            boxes += [b]
-            labels += [3]
-        for t in noise_types:
-            canvas[i] = noisy(t,canvas[i])
+#     for _ in range(np.random.choice(range(n_max))):
+#         canvas,segments,b = DrawRandomCircle(canvas,segments,r_min,r_max,alpha)
+#         boxes += [b]
+#         labels += [1]
+    for _ in range(np.random.choice(range(n_max))):
+        canvas,segments,b = DrawRandomSquare(canvas,segments,r_min,r_max,alpha)
+        boxes += [b]
+        labels += [2]
+    for _ in range(np.random.choice(range(n_max))):
+        canvas,segments,b = DrawRandomLine(canvas,segments,line_width_min,line_width_max,alpha)
+        boxes += [b]
+        labels += [3]
+    for t in noise_types:
+        canvas = noisy(t,canvas)
     return canvas,segments, labels, boxes
 
-def stackSegments(segments):
-    canvas = np.zeros((segments.shape[:3]))
-    canvas += 1 * segments[:,:,:,0]
-    canvas += 2 * segments[:,:,:,1]
-    canvas += 3 * segments[:,:,:,2]
-    return canvas
+
 
 class SimpleSegmentationDataset(Dataset):
     """A simple dataset for image segmentation purpose"""
@@ -118,13 +112,13 @@ class SimpleSegmentationDataset(Dataset):
     def __len__(self):
         return self.virtual_size
 
-    def __getitem__(self):
-        x,y,_,_ = generateSegmentation(self.patch_size, self.n_max,self.virtual_size, self.alpha)
+    def __getitem__(self,idx):
+        x,y,_,_ = generateSegmentation(self.patch_size, self.n_max, self.alpha)
 #         x = x.transpose([2,0,1])
 
-        y = stackSegments(y)
-        y=(np.arange(y.max()) == y[...,None]-1).astype(int)
-        return x,y
+#         y=(np.arange(4) == y[...,None]-1).astype(int)
+        sample = {'input': x, 'groundtruth': y}
+        return sample
     
 def draw_input(img, title=None):
 

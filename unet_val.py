@@ -67,7 +67,7 @@ class ResidualBlock(nn.Module):
         if self.batch_norm:
             self.bn1 = nn.BatchNorm2d(out_channels)
         if self.dropout > 0:
-            self.drop = nn.Dropout2d()
+            self.drop = nn.Dropout2d(self.dropout)
         self.conv2 = conv3x3(out_channels, out_channels)
         if self.batch_norm:
             self.bn2 = nn.BatchNorm2d(out_channels)
