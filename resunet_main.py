@@ -10,8 +10,8 @@ import torch.nn.functional as Fu
 import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
-from unet_val import UNet
-# from unet_meli import UNet,weights_init
+#from unet_val import UNet
+from unet_meli import UNet,weights_init
 import torch.backends.cudnn as cudnn
 from dataset_generator_2 import Dataset_sat
 from torch.utils.data import DataLoader
@@ -36,12 +36,11 @@ PATH_OUTPUT='OUTPUT/'
 
         
 INPUT_CHANNELS=9
-OUTPUT_CHANNELS=2
 NB_CLASSES=2
 
 SIZE_PATCH=120
 ##############
-MODEL_PATH_SAVE=GLOBAL_PATH+'RESUNET_pytorch_BASIC_test'
+MODEL_PATH_SAVE=GLOBAL_PATH+'RESUNET_pytorch_test'
 MODEL_PATH_RESTORE=''
 TEST_SAVE=GLOBAL_PATH+'TEST_SAVE/'
 if not os.path.exists(TEST_SAVE):
@@ -54,7 +53,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 REC_SAVE=200#2000
 DROPOUT=0.1#0.1
 DEFAULT_BATCH_SIZE = 8#10
-DEFAULT_EPOCHS = 2#50
+DEFAULT_EPOCHS = 1#50
 DEFAULT_VALID=50#100
 DISPLAY_STEP=100#50
 
@@ -91,7 +90,7 @@ class Trainer(object):
         self.prediction_path = prediction_path
         
     
-    def train(self, data_provider_path, save_path='', restore_path='',  epochs=3, dropout=0.9, display_step=1, validation_batch_size=30,rec_save=1, prediction_path = '',data_aug=None):
+    def train(self, data_provider_path, save_path='', restore_path='',  epochs=3, dropout=0.1, display_step=1, validation_batch_size=30,rec_save=1, prediction_path = '',data_aug=None):
         """
         Lauches the training process
         
@@ -110,7 +109,9 @@ class Trainer(object):
         PATH_TEST=data_provider_path+'TEST/'
         
         
-        
+        ###Tune Learning rate
+        reduce_lr_steps = [1,5, 10, 100,200]
+#         reduce_lr_steps=[80]
         if epochs == 0:
             return save_path
         if save_path=='':
@@ -123,12 +124,12 @@ class Trainer(object):
      
         
         val_generator=Dataset_sat.from_root_folder(PATH_VALIDATION,self.nb_classes,max_data_size=500)
-        val_loader = DataLoader(val_generator, batch_size=validation_batch_size,shuffle=False, num_workers=4)
-        RBD=randint(0,int(val_loader.__len__()))
-        self.store_init(val_loader,"_init",RBD)
+        val_loader = DataLoader(val_generator, batch_size=validation_batch_size,shuffle=False, num_workers=1)
+        RBD=randint(0,int(val_loader.__len__())-1)
+        
         
         train_generator=Dataset_sat.from_root_folder(PATH_TRAINING,self.nb_classes)
-        train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=4)
+        train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=1)
         if restore_path=='':
             loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,train_loader.__len__(),prediction_path,'w')
             print('Model trained from scratch')
@@ -136,30 +137,48 @@ class Trainer(object):
             loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,train_loader.__len__(),prediction_path,'a')
             self.net.load_state_dict(torch.load(restore_path))
             print('Model loaded from {}'.format(restore_path))
-
+        
+        self.store_init(val_loader,"_init",RBD)
+        
         logging.info("Start optimization")
 
         counter=0
         
         for epoch in range(epochs):
+            
+            if epoch in reduce_lr_steps:
+        
+                self.lr = self.lr * 0.3
+                self.optimizer = torch.optim.Adam(self.net.parameters(), lr=self.lr)
             total_loss = 0
             error_tot=0
-            train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=4)
+            train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=1)
             for i_batch,sample_batch in enumerate(train_loader):
                 batch_x=standardize(sample_batch['input'])
                 batch_y=sample_batch['groundtruth']
-                self.optimizer.zero_grad()
-                _,loss=predict(self.net,batch_x,batch_y)
                 
+                
+                 ##Variables input and output transformed for cuda
+                X = Variable(batch_x.float())
+                X=X.permute(0,3,1,2).cuda()  
+                Y = Variable(batch_y.float())
+                Y=Y.cuda() 
+
+                ## Fwd+loss+bckwrd
+                
+                probs=predict(self.net,X,self.optimizer)
+                self.optimizer.zero_grad()
+                loss=criterion(Y,probs)
                 loss.backward()
                 self.optimizer.step()
+                
                 total_loss+=loss.data[0]
                 loss_train[counter]=loss.data[0]
                 file_train.write(str(loss_train[counter])+'\n')
                 counter+=1
                 
                 if i_batch % display_step == 0:
-                    self.output_training_stats(i_batch,batch_x,batch_y)
+                    self.output_training_stats(i_batch,X,Y)
                 if counter % rec_save == 0:
                     torch.save(self.net.state_dict(),save_path + 'CP{}.pth'.format(counter))
                     print('Checkpoint {} saved !'.format(counter))
@@ -182,10 +201,11 @@ class Trainer(object):
     
     def output_training_stats(self, step, batch_x, batch_y):
         # Calculate batch loss and accuracy
-        predictions,loss=predict(self.net,batch_x,batch_y)
+        predictions=predict(self.net,batch_x,self.optimizer)
+        loss=criterion(batch_y,predictions)
         loss=loss.data[0]
         predictions=predictions.data.cpu().numpy()
-        groundtruth=np.asarray(batch_y)
+        groundtruth=batch_y.data.cpu().numpy()
         logging.info("Iter {:}, Minibatch Loss= {:.4f}, Minibatch error= {:.1f}%".format(step,loss,error_rate(predictions, groundtruth)))
    
         
@@ -195,12 +215,21 @@ class Trainer(object):
         loss_v=0
         error_rate_v=0
 
-        for i_batch,sample_batch in enumerate(val_loader):
-            batch_x=standardize(sample_batch['input'])
-            probs,loss=predict(self.net,batch_x,sample_batch['groundtruth'])
+        for i_batch,sample in enumerate(val_loader):
+            batch_x=standardize(sample['input'])
+            batch_y=sample['groundtruth']
+            
+            X = Variable(batch_x.float())
+            X=X.permute(0,3,1,2).cuda()  
+            Y = Variable(batch_y.float())
+            Y=Y.cuda()  
+            
+            probs=predict(self.net,X,self.optimizer)
+            loss=criterion(Y,probs)
+            
             loss_v+=loss.data[0]
             prediction_v=probs.data.cpu().numpy()
-            groundtruth=np.asarray(sample_batch['groundtruth'])
+            groundtruth=np.asarray(batch_y)
             error_rate_v+=error_rate(prediction_v,groundtruth)
             if i_batch==random_batch_display and save_patches:
                 batch_x=np.asarray(batch_x)
@@ -223,13 +252,21 @@ class Trainer(object):
         f1_v=0
         error_rate_v=0
 
-        for i_batch,sample_batch in enumerate(val_loader):
-            batch_x=standardize(sample_batch['input'])
-            probs,loss=predict(self.net,batch_x,sample_batch['groundtruth'])
+        for i_batch,sample in enumerate(val_loader):
+            batch_x=standardize(sample['input'])
+            batch_y=sample['groundtruth']
+            
+            X = Variable(batch_x.float())
+            X=X.permute(0,3,1,2).cuda()  
+            Y = Variable(batch_y.float())
+            Y=Y.cuda()  
+            
+            probs=predict(self.net,X,self.optimizer)
+            loss=criterion(Y,probs)
             loss_v+=loss.data[0]
             
             prediction_v=probs.data.cpu().numpy()
-            groundtruth=np.asarray(sample_batch['groundtruth'])
+            groundtruth=np.asarray(batch_y)
             iou_acc,f1,iou=predict_score_batch(file_gson,np.argmax(groundtruth,3),np.argmax(prediction_v,3))
             iou_acc_v+=iou_acc
             iou_v+=iou
@@ -255,17 +292,29 @@ class Trainer(object):
         return error_rate_v,loss_v,iou_v,iou_acc_v,f1_v
     
     
-def predict(net,batch_x,batch_y):
-    X=batch_x.permute(0,3,1,2)
-    X = Variable(X).type(torch.FloatTensor).cuda()
-    Y=batch_y.permute(0,3,1,2)
-    Y = Variable(Y).type(torch.FloatTensor).cuda()
+loss_fn=nn.CrossEntropyLoss()
+def criterion(y,y_):
+#     y=y.permute(0,3,1,2)
+#     y_=y_.permute(0,3,1,2)
+    
+#     loss=Fu.binary_cross_entropy_with_logits(y_,y)
+    
+    y = y.contiguous().view(-1,y.size()[-1])
+    y_ = y_.contiguous().view(-1,y.size()[-1])
+    y = y.max(-1)[1]
+    loss = loss_fn( y_,y)
+    
+    return loss
 
-    logits=net(X)
-    probs = Fu.softmax(logits,dim=1)
-    loss=Fu.binary_cross_entropy_with_logits(logits,Y)
-    probs=probs.permute(0,2,3,1)
-    return probs,loss
+
+def predict(net,batch_x,optimizer):
+    
+#     optimizer.zero_grad()
+#     logits=net.forward(batch_x) 
+    logits=net(batch_x) 
+    probs=logits.permute(0,2,3,1)
+    return probs
+
 
 def save_metrics(epochs,training_len,prediction_path,mode):
     #STORE loss for ANALYSIS
@@ -325,8 +374,8 @@ if __name__ == '__main__':
     
     
       #python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_BASIC_TEST_120/ RESUNET_val_spacenet.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=0.0001 --batch_size=8  --epochs=1 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=400
-        
 
+# python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_VAL_SPACENET/ RESUNET_pytorch_val_spacenet.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=0.0001 --batch_size=32  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
 
     
     root_folder=sys.argv[1]
@@ -377,7 +426,7 @@ if __name__ == '__main__':
             raise ValueError('Unknown argument %s' % str(arg))
     
     model=UNet(INPUT_CHANNELS,NB_CLASSES,DEFAULT_LAYERS,DEFAULT_FEATURES_ROOT,DROPOUT)
-#     model.apply(weights_init)
+    model.apply(weights_init)
     model.cuda()
     cudnn.benchmark = True
     trainer=Trainer(model,DEFAULT_BATCH_SIZE,DEFAULT_LR,NB_CLASSES)

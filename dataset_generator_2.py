@@ -27,11 +27,9 @@ def _parse_image(path_input,path_output,nb_classes):
             X =np.array(hf.get('data'))
     with h5py.File(path_output, 'r') as hf:
             Y_build=np.array(hf.get('data'))
-            inp=torch.LongTensor(Y_build)
-            inp_ = torch.unsqueeze(inp, len(Y_build.shape))
-            Y = torch.FloatTensor(Y_build.shape[0],Y_build.shape[1],nb_classes ).zero_()
-            Y.scatter_(len(Y_build.shape), inp_, 1)
-            Y=np.asarray(Y)
+            Y_build=(Y_build>0).astype(int)
+            Y_other= (1-Y_build).astype(int)
+            Y=np.stack((Y_other,Y_build),axis=2)
             
     return X,Y
 
