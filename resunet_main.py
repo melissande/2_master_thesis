@@ -10,7 +10,7 @@ import torch.nn.functional as Fu
 import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
-#from unet_val import UNet
+# from unet_val import UNet
 from unet_meli import UNet,weights_init
 import torch.backends.cudnn as cudnn
 from dataset_generator_2 import Dataset_sat
@@ -110,8 +110,8 @@ class Trainer(object):
         
         
         ###Tune Learning rate
-        reduce_lr_steps = [1,5, 10, 100,200]
-#         reduce_lr_steps=[80]
+#         reduce_lr_steps = [1,5, 10, 100,200]
+        reduce_lr_steps=[50,70]
         if epochs == 0:
             return save_path
         if save_path=='':
@@ -375,8 +375,9 @@ if __name__ == '__main__':
     
       #python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_BASIC_TEST_120/ RESUNET_val_spacenet.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=0.0001 --batch_size=8  --epochs=1 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=400
 
-# python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_VAL_SPACENET/ RESUNET_pytorch_val_spacenet.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=0.0001 --batch_size=32  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
+# python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_VAL_SPACENET/ RESUNET_pytorch_val_spacenet_restored.ckpt MODEL_VAL_SPACENET/RESUNET_pytorch_val_spacenet.ckptCP190000.pth --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-4 --batch_size=32  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
 
+#python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_MELI_GHANA/ RESUNET_meli_ghana_restored2.ckpt MODEL_MELI_GHANA/RESUNET_pytorch_meli_ghana_restored.ckptCP30000.pth --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-5 --batch_size=8  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
     
     root_folder=sys.argv[1]
 #     root_folder = '../2_DATA_GHANA/DATASET/120_x_120_8_pansh/'
