@@ -11,7 +11,8 @@ import torch.nn as nn
 from torch.autograd import Variable
 from torch import optim
 # from unet_val import UNet
-from unet_meli import UNet,weights_init
+from unet_val_2 import UNet
+# from unet_meli import UNet,weights_init
 import torch.backends.cudnn as cudnn
 from dataset_generator_2 import Dataset_sat
 from torch.utils.data import DataLoader
@@ -51,18 +52,20 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 ##############
 
 REC_SAVE=200#2000
-DROPOUT=0.1#0.1
-DEFAULT_BATCH_SIZE = 8#10
+DROPOUT=0.2#0.2
+DEFAULT_BATCH_SIZE = 32#8 ghana and 32 spacenet
 DEFAULT_EPOCHS = 1#50
-DEFAULT_VALID=50#100
+DEFAULT_VALID=100#100
 DISPLAY_STEP=100#50
 
 ###############
 DEFAULT_LAYERS=3
 DEFAULT_FEATURES_ROOT=32
-DEFAULT_FILTERS_SIZE=3
 DEFAULT_LR=0.0001
+DEFAULT_FILTERS_WIDTH=3
 
+####
+IOU_STEP=15
 ####### TMP folder for IOU
 
 TMP_IOU=TEST_SAVE+'TMP_IOU/'
@@ -84,13 +87,24 @@ class Trainer(object):
         self.batch_size = batch_size
         self.lr = lr
         self.nb_classes=nb_classes
-    def _initialize(self, prediction_path):
+    def _initialize(self, prediction_path,avg_loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif,iou_step):
         
         self.optimizer = optim.Adam(self.net.parameters(),lr=self.lr)
         self.prediction_path = prediction_path
+        self.avg_loss_train=avg_loss_train
+        self.file_train=file_train
+        self.loss_verif=loss_verif
+        self.file_verif=file_verif
+        self.IOU_verif=IOU_verif
+        self.IOU_file_verif=IOU_file_verif
+        self.IOU_acc_verif=IOU_acc_verif
+        self.IOU_acc_file_verif=IOU_acc_file_verif
+        self.f1_IOU_verif=f1_IOU_verif
+        self.f1_IOU_file_verif=f1_IOU_file_verif
+        self.IOU_STEP=iou_step
         
     
-    def train(self, data_provider_path, save_path='', restore_path='',  epochs=3, dropout=0.1, display_step=1, validation_batch_size=30,rec_save=1, prediction_path = '',data_aug=None):
+    def train(self, data_provider_path, save_path='', restore_path='',  epochs=3, dropout=0.2, display_step=100, validation_batch_size=100,rec_save=200, prediction_path = '',iou_step=1,data_aug=None):
         """
         Lauches the training process
         
@@ -110,35 +124,39 @@ class Trainer(object):
         
         
         ###Tune Learning rate
-#         reduce_lr_steps = [1,5, 10, 100,200]
-        reduce_lr_steps=[50,70]
+        reduce_lr_steps = [1,10,100,300]
+#         reduce_lr_steps=[50,70]
         if epochs == 0:
             return save_path
         if save_path=='':
             return 'Specify a path where to store the Model'
-        self._initialize(prediction_path)
+        
+        
+        if restore_path=='':
+            loss_train,avg_loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(TEST_SAVE,'w')
+           
+            print('Model trained from scratch')
+        else:
+            loss_train,avg_loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(TEST_SAVE,'a')
+            self.net.load_state_dict(torch.load(restore_path))
+            print('Model loaded from {}'.format(restore_path))
             
         TMP_IOU=prediction_path+'TMP_IOU/'
         if not os.path.exists(TMP_IOU):
             os.makedirs(TMP_IOU)
      
+        self._initialize(prediction_path,avg_loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif,iou_step)
         
-        val_generator=Dataset_sat.from_root_folder(PATH_VALIDATION,self.nb_classes,max_data_size=500)
+        val_generator=Dataset_sat.from_root_folder(PATH_VALIDATION,self.nb_classes)#max_data_size=500
         val_loader = DataLoader(val_generator, batch_size=validation_batch_size,shuffle=False, num_workers=1)
         RBD=randint(0,int(val_loader.__len__())-1)
         
         
         train_generator=Dataset_sat.from_root_folder(PATH_TRAINING,self.nb_classes)
         train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=1)
-        if restore_path=='':
-            loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,train_loader.__len__(),prediction_path,'w')
-            print('Model trained from scratch')
-        else:
-            loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif=save_metrics(epochs,train_loader.__len__(),prediction_path,'a')
-            self.net.load_state_dict(torch.load(restore_path))
-            print('Model loaded from {}'.format(restore_path))
+       
         
-        self.store_init(val_loader,"_init",RBD)
+        self.store_init_and_last(val_loader,"_init",RBD)
         
         logging.info("Start optimization")
 
@@ -166,15 +184,15 @@ class Trainer(object):
 
                 ## Fwd+loss+bckwrd
                 
-                probs=predict(self.net,X,self.optimizer)
+                probs=predict(self.net,X)
                 self.optimizer.zero_grad()
                 loss=criterion(Y,probs)
                 loss.backward()
                 self.optimizer.step()
                 
                 total_loss+=loss.data[0]
-                loss_train[counter]=loss.data[0]
-                file_train.write(str(loss_train[counter])+'\n')
+                loss_train.append(loss.data[0])
+                
                 counter+=1
                 
                 if i_batch % display_step == 0:
@@ -182,36 +200,30 @@ class Trainer(object):
                 if counter % rec_save == 0:
                     torch.save(self.net.state_dict(),save_path + 'CP{}.pth'.format(counter))
                     print('Checkpoint {} saved !'.format(counter))
-
+            
+            self.avg_loss_train.append(total_loss/train_loader.__len__())
+            (self.file_train).write(str(total_loss/train_loader.__len__())+'\n')
             logging.info(" Training {:}, Minibatch Loss= {:.4f}".format("epoch_%s"%epoch,total_loss/train_loader.__len__()))
-            error_rate_v,loss_v,iou_v,iou_acc_v,f1_v=self.store_validation(val_loader,"epoch_%s"%epoch,RBD,file_gson=TMP_IOU,save_patches=False)
-            IOU_verif[epoch]=iou_v
-            IOU_acc_verif[epoch]=iou_acc_v
-            f1_IOU_verif[epoch]=f1_v
-            loss_verif[epoch]=loss_v
-            
-            IOU_file_verif.write(str(IOU_verif[epoch])+'\n')
-            IOU_acc_file_verif.write(str(IOU_acc_verif[epoch])+'\n')
-            f1_IOU_file_verif.write(str(f1_IOU_verif[epoch])+'\n')
-            file_verif.write(str(loss_verif[epoch])+'\n')
-            
-        error_rate_v,loss_v,iou_v,iou_acc_v,f1_v=self.store_validation(val_loader,"epoch_%s"%epoch,RBD,file_gson=TMP_IOU,save_patches=True)
+            self.store_validation(val_loader,epoch,RBD,file_gson=TMP_IOU,save_patches=False)
         
-        return save_path, loss_train,loss_verif,IOU_verif,IOU_acc_verif,f1_IOU_verif      
+            
+        self.store_init_and_last(val_loader,'_last_',RBD,save_patches=True)
+        
+        return save_path, loss_train,self.avg_loss_train,self.loss_verif,self.IOU_verif,self.IOU_acc_verif,self.f1_IOU_verif      
     
     def output_training_stats(self, step, batch_x, batch_y):
         # Calculate batch loss and accuracy
-        predictions=predict(self.net,batch_x,self.optimizer)
+        predictions=predict(self.net,batch_x)
         loss=criterion(batch_y,predictions)
         loss=loss.data[0]
         predictions=predictions.data.cpu().numpy()
         groundtruth=batch_y.data.cpu().numpy()
-        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Minibatch error= {:.1f}%".format(step,loss,error_rate(predictions, groundtruth)))
+        logging.info("Iter {:}, Minibatch Loss= {:.4f}, Minibatch error= {:.4f}%".format(step,loss,error_rate(predictions, groundtruth)))
    
         
         
         
-    def store_init(self,val_loader,name,random_batch_display,*,save_patches=True):
+    def store_init_and_last(self,val_loader,name,random_batch_display,*,save_patches=True):
         loss_v=0
         error_rate_v=0
 
@@ -224,7 +236,7 @@ class Trainer(object):
             Y = Variable(batch_y.float())
             Y=Y.cuda()  
             
-            probs=predict(self.net,X,self.optimizer)
+            probs=predict(self.net,X)
             loss=criterion(Y,probs)
             
             loss_v+=loss.data[0]
@@ -242,16 +254,17 @@ class Trainer(object):
                          
         loss_v/=val_loader.__len__()   
         error_rate_v/=val_loader.__len__()  
-        logging.info("Verification  loss= {:.4f},error= {:.1f}%".format(loss_v,error_rate_v))
+        logging.info("Verification  loss= {:.4f},error= {:.4f}%".format(loss_v,error_rate_v))
         
     
-    def store_validation(self,val_loader, name,random_batch_display,*,file_gson='',save_patches=True):
+    def store_validation(self,val_loader, epoch,random_batch_display,*,file_gson='',save_patches=True):
         loss_v=0
         iou_v=0
         iou_acc_v=0
         f1_v=0
         error_rate_v=0
 
+        name="epoch_%s"%epoch
         for i_batch,sample in enumerate(val_loader):
             batch_x=standardize(sample['input'])
             batch_y=sample['groundtruth']
@@ -261,16 +274,17 @@ class Trainer(object):
             Y = Variable(batch_y.float())
             Y=Y.cuda()  
             
-            probs=predict(self.net,X,self.optimizer)
+            probs=predict(self.net,X)
             loss=criterion(Y,probs)
             loss_v+=loss.data[0]
             
             prediction_v=probs.data.cpu().numpy()
             groundtruth=np.asarray(batch_y)
-            iou_acc,f1,iou=predict_score_batch(file_gson,np.argmax(groundtruth,3),np.argmax(prediction_v,3))
-            iou_acc_v+=iou_acc
-            iou_v+=iou
-            f1_v+=f1
+            if (epoch+1)%self.IOU_STEP==0:
+                iou_acc,f1,iou=predict_score_batch(file_gson,np.argmax(groundtruth,3),np.argmax(prediction_v,3))
+                iou_acc_v+=iou_acc
+                iou_v+=iou
+                f1_v+=f1
             error_rate_v+=error_rate(prediction_v,groundtruth)
             if i_batch==random_batch_display and save_patches:
                 batch_x=np.asarray(batch_x)
@@ -280,24 +294,33 @@ class Trainer(object):
                     pansharp=np.stack((batch_x[:,:,:,3],batch_x[:,:,:,2],batch_x[:,:,:,1]),axis=3)
                 plot_summary(prediction_v,groundtruth,pansharp,name,self.prediction_path,save_patches)
 
-        loss_v/=val_loader.__len__()   
-        iou_v/=val_loader.__len__()  
-        iou_acc_v/=val_loader.__len__()  
-        f1_v/=val_loader.__len__()  
-        error_rate_v/=val_loader.__len__()  
+        loss_v/=val_loader.__len__() 
+        error_rate_v/=val_loader.__len__()
+        self.loss_verif.append(loss_v)
+        (self.file_verif).write(str(loss_v)+'\n')
+        
+        if (epoch+1)%self.IOU_STEP==0:
+            iou_v/=val_loader.__len__()  
+            iou_acc_v/=val_loader.__len__()  
+            f1_v/=val_loader.__len__()  
+            logging.info("Verification  IOU = {:.4f}, IOU Precision = {:.4f}%, F1 IOU= {:.4f}%".format(iou_v,iou_acc_v,f1_v))
+            self.IOU_verif.append(iou_v)
+            self.IOU_acc_verif.append(iou_acc_v)
+            self.f1_IOU_verif.append(f1_v)
+            
+            (self.IOU_file_verif).write(str(iou_acc_v)+'\n')
+            (self.IOU_acc_file_verif).write(str(iou_acc_v)+'\n')
+            (self.f1_IOU_file_verif).write(str(f1_v)+'\n')
+          
 
-        logging.info("Verification  loss= {:.4f},error rate= {:.1f}%, IOU = {:.4f}, IOU Precision = {:.4f}%, F1 IOU= {:.4f}%".format(loss_v,error_rate_v,iou_v,iou_acc_v,f1_v))
+        logging.info("Verification  loss= {:.4f},error rate= {:.4f}%".format(loss_v,error_rate_v))
 
 
-        return error_rate_v,loss_v,iou_v,iou_acc_v,f1_v
     
     
 loss_fn=nn.CrossEntropyLoss()
 def criterion(y,y_):
-#     y=y.permute(0,3,1,2)
-#     y_=y_.permute(0,3,1,2)
-    
-#     loss=Fu.binary_cross_entropy_with_logits(y_,y)
+
     
     y = y.contiguous().view(-1,y.size()[-1])
     y_ = y_.contiguous().view(-1,y.size()[-1])
@@ -307,32 +330,33 @@ def criterion(y,y_):
     return loss
 
 
-def predict(net,batch_x,optimizer):
+def predict(net,batch_x):
     
-#     optimizer.zero_grad()
-#     logits=net.forward(batch_x) 
+
     logits=net(batch_x) 
     probs=logits.permute(0,2,3,1)
     return probs
 
 
-def save_metrics(epochs,training_len,prediction_path,mode):
+def save_metrics(prediction_path,mode):
     #STORE loss for ANALYSIS
-    loss_train=np.zeros(epochs*training_len)
-    file_train = open(prediction_path+'loss_train.txt',mode) 
-    loss_verif=np.zeros(epochs)
+
+    loss_train=[]
+    avg_loss_train=[]
+    file_train = open(prediction_path+'avg_loss_train.txt',mode) 
+    loss_verif=[]
     file_verif = open(prediction_path+'loss_verif.txt',mode) 
     #STORE IOU for ANALYSIS
-    IOU_verif=np.zeros(epochs)
+    IOU_verif=[]
     IOU_file_verif = open(prediction_path+'iou_verif.txt',mode)
     #STORE IOU_ACC for ANALYSIS
-    IOU_acc_verif=np.zeros(epochs)
+    IOU_acc_verif=[]
     IOU_acc_file_verif = open(prediction_path+'iou_acc_verif.txt',mode)
     #STORE f1_IOU for ANALYSIS
-    f1_IOU_verif=np.zeros(epochs)
+    f1_IOU_verif=[]
     f1_IOU_file_verif = open(prediction_path+'f1_iou_verif.txt',mode) 
     
-    return loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif
+    return loss_train,avg_loss_train,file_train,loss_verif,file_verif,IOU_verif,IOU_file_verif,IOU_acc_verif,IOU_acc_file_verif,f1_IOU_verif,f1_IOU_file_verif
 def error_rate(predictions, labels):
     """
     Return the error rate based on dense predictions and 1-hot labels.
@@ -377,8 +401,12 @@ if __name__ == '__main__':
 
 # python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_VAL_SPACENET/ RESUNET_pytorch_val_spacenet_restored.ckpt MODEL_VAL_SPACENET/RESUNET_pytorch_val_spacenet.ckptCP190000.pth --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-4 --batch_size=32  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
 
-#python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_MELI_GHANA/ RESUNET_meli_ghana_restored2.ckpt MODEL_MELI_GHANA/RESUNET_pytorch_meli_ghana_restored.ckptCP30000.pth --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-5 --batch_size=8  --epochs=100 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
+#python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_w3_GHANA/ RESUNET_w3_ghana.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-3 --batch_size=8  --epochs=200 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
     
+    
+# python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_TRANSFER_SPACENET/ RESUNET_transfer_spacenet '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-4 --batch_size=32  --epochs=1 --dropout=0.2 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
+
+
     root_folder=sys.argv[1]
 #     root_folder = '../2_DATA_GHANA/DATASET/120_x_120_8_pansh/'
 #     root_folder ='/scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/'
@@ -426,40 +454,56 @@ if __name__ == '__main__':
         else:
             raise ValueError('Unknown argument %s' % str(arg))
     
-    model=UNet(INPUT_CHANNELS,NB_CLASSES,DEFAULT_LAYERS,DEFAULT_FEATURES_ROOT,DROPOUT)
-    model.apply(weights_init)
+    model=UNet(INPUT_CHANNELS,NB_CLASSES,depth=DEFAULT_LAYERS,n_features_zero=DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTERS_WIDTH,dropout=DROPOUT)
+#     model.apply(weights_init) ## for meli network
     model.cuda()
     cudnn.benchmark = True
-    trainer=Trainer(model,DEFAULT_BATCH_SIZE,DEFAULT_LR,NB_CLASSES)
-    save_path,loss_train,loss_verif,iou_verif,iou_acc_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE)
+    trainer=Trainer(model,batch_size=DEFAULT_BATCH_SIZE,lr=DEFAULT_LR,nb_classes=NB_CLASSES)
+    save_path,loss_train,avg_loss_train,loss_verif,iou_verif,iou_acc_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE,iou_step=IOU_STEP)
     print('Last model saved is %s: '%save_path)
+#     fig, axs = plt.subplots(5, sharex=True)
+
+    
 #     #SAVE loss
-#     plt.title('Plot Loss', fontsize=20)
+
+#     axs[0].set_title('Plot Loss', fontsize=8)
 #     ite = np.arange(0,len(loss_train),1)
 #     epo=np.arange(int(len(loss_train)/DEFAULT_EPOCHS)-1,len(loss_train),int(len(loss_train)/DEFAULT_EPOCHS))
-#     plt.plot(ite,loss_train,'b',epo,loss_verif,'g')
-#     plt.ylabel('Loss')
-#     plt.show()
+#     axs[0].plot(ite,loss_train,'b',epo,loss_verif,'g',epo,avg_loss_train,'r')
+#     axs[0].set_ylabel('Loss')
+
     
 #      #SAVE IOU
-#     plt.title('Plot IOU', fontsize=20)
-#     epo=np.arange(int(len(loss_train)/DEFAULT_EPOCHS)-1,len(loss_train),int(len(loss_train)/DEFAULT_EPOCHS))
-#     plt.plot(epo,iou_verif,'g')
-#     plt.ylabel('IOU in %')
-#     plt.show()
+
+#     axs[1].set_title('Plot IOU', fontsize=8)
+#     epo=np.arange(int(len(loss_train)/len(iou_verif))-1,len(loss_train),int(len(loss_train)/len(iou_verif)))
+#     axs[1].plot(epo,iou_verif,'g')
+#     axs[1].set_ylabel('IOU in %')
+
     
 #     #SAVE IOU  acc
-#     plt.title('Plot IOU Accuracy', fontsize=20)
-#     epo=np.arange(int(len(loss_train)/DEFAULT_EPOCHS)-1,len(loss_train),int(len(loss_train)/DEFAULT_EPOCHS))
-#     plt.plot(epo,iou_acc_verif,'g')
-#     plt.ylabel('IOU Accuracy in %')
-#     plt.show()
+
+#     axs[2].set_title('Plot IOU Accuracy', fontsize=8)
+#     epo=np.arange(int(len(loss_train)/len(iou_acc_verif))-1,len(loss_train),int(len(loss_train)/len(iou_acc_verif)))
+#     axs[2].plot(epo,iou_acc_verif,'g')
+#     axs[2].set_ylabel('IOU Accuracy in %')
+    
 
 
     
 #      #SAVE f1 IOU
-#     plt.title('Plot f1 IOU', fontsize=20)
+
+#     axs[3].set_title('Plot f1 IOU', fontsize=8)
+#     epo=np.arange(int(len(loss_train)/len(f1_iou_verif))-1,len(loss_train),int(len(loss_train)/len(f1_iou_verif)))
+#     axs[3].plot(epo,f1_iou_verif,'g')
+#     axs[3].set_ylabel('f1 IOU in %')
+    
+    
+#      #SAVE loss 2
+
+#     axs[4].set_title('Plot Loss', fontsize=8)
 #     epo=np.arange(int(len(loss_train)/DEFAULT_EPOCHS)-1,len(loss_train),int(len(loss_train)/DEFAULT_EPOCHS))
-#     plt.plot(epo,f1_iou_verif,'g')
-#     plt.ylabel('f1 IOU in %')
+#     axs[4].plot(epo,loss_verif,'g',epo,avg_loss_train,'r')
+#     axs[4].set_ylabel('Loss')
+
 #     plt.show()

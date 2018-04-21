@@ -79,21 +79,23 @@ def DrawRandomLine(img,segments,line_width_min,line_width_max,alpha):
 
 def generateSegmentation(canvas_size, n_max, alpha = 0.5, noise_types=[]):
     canvas = background_intensity * np.ones((canvas_size,canvas_size,3))
-    segments = np.zeros((canvas_size,canvas_size,3))
+    segments = np.zeros((canvas_size,canvas_size,2))
     boxes = []
     labels = []
-#     for _ in range(np.random.choice(range(n_max))):
-#         canvas,segments,b = DrawRandomCircle(canvas,segments,r_min,r_max,alpha)
-#         boxes += [b]
-#         labels += [1]
     for _ in range(np.random.choice(range(n_max))):
         canvas,segments,b = DrawRandomSquare(canvas,segments,r_min,r_max,alpha)
         boxes += [b]
-        labels += [2]
-    for _ in range(np.random.choice(range(n_max))):
-        canvas,segments,b = DrawRandomLine(canvas,segments,line_width_min,line_width_max,alpha)
-        boxes += [b]
-        labels += [3]
+        labels += [1]
+        
+#     for _ in range(np.random.choice(range(n_max))):
+#         canvas,segments,b = DrawRandomCircle(canvas,segments,r_min,r_max,alpha)
+#         boxes += [b]
+#         labels += [2]
+    
+#     for _ in range(np.random.choice(range(n_max))):
+#         canvas,segments,b = DrawRandomLine(canvas,segments,line_width_min,line_width_max,alpha)
+#         boxes += [b]
+#         labels += [3]
     for t in noise_types:
         canvas = noisy(t,canvas)
     return canvas,segments, labels, boxes

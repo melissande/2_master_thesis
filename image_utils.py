@@ -7,6 +7,8 @@ import os
 from osgeo import gdal,osr,ogr
 import matplotlib.pyplot as plt
 import torch
+from scipy.ndimage.morphology import distance_transform_bf
+
 
 NAME_PANCHRO='panchro.tif'
 NAME_PANSHARP='pansharp.tif'
@@ -136,6 +138,24 @@ def standardize(data):
     data=(data-min_t[0])/((max_t[0]-min_t[0]))
 
     return data
+
+
+def distance_map_batch(Y_batch,threshold=20,bins=15):
+    
+    Y_batch_dist=[]
+    for i in range(len(Y_batch)):
+        distance=distance_transform_bf(np.asarray(Y_batch)[i,:,:,1],sampling=2)
+        distance=np.minimum(distance,threshold*(distance>0))*(bins-1)/threshold
+        inp=torch.LongTensor(distance)
+        inp_ = torch.unsqueeze(inp, len(distance.shape))
+        one_hot = torch.FloatTensor(distance.shape[0],distance.shape[1], bins).zero_()
+        one_hot.scatter_(len(distance.shape), inp_, 1)
+        one_hot=np.asarray(one_hot)
+        Y_batch_dist.append(one_hot)
+
+    return torch.FloatTensor(np.asarray(Y_batch_dist))
+    
+    
 
 if __name__ == '__main__':
 
