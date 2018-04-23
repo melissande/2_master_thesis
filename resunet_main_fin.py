@@ -186,9 +186,7 @@ class Trainer(object):
         
         
         logging.info("Start optimization")
-
         counter=0
-        
         for epoch in range(epochs):
             
             ##tune learning reate
@@ -211,6 +209,7 @@ class Trainer(object):
                 
                 ## fwd
                 if self.dist_net:
+                    
                     Y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
                     Y_dist = Variable(Y_dist.float())
                     Y_dist=Y_dist.cuda()
@@ -221,7 +220,8 @@ class Trainer(object):
                     loss_dist=criterion(Y_dist,probs_dist)
                     loss=loss_seg+loss_dist
                     
-                else:    
+                else:
+                    
                     probs=predict(self.net,X)
                     self.optimizer.zero_grad()
                     loss=criterion(Y,probs)
@@ -323,7 +323,7 @@ class Trainer(object):
                     pansharp=np.stack((batch_x[:,:,:,5],batch_x[:,:,:,3],batch_x[:,:,:,2]),axis=3)
                 else:
                     pansharp=batch_x
-#                 plot_summary(prediction_seg_v,groundtruth_seg_v,prediction_dist_v,groundtruth_dist,pansharp,name,self.prediction_path,save_patches)
+                plot_summary(prediction_seg_v,groundtruth_seg_v,prediction_dist_v,groundtruth_dist,pansharp,name,self.prediction_path,save_patches)
 
     
                          
@@ -460,16 +460,16 @@ def error_rate(predictions, labels):
 def plot_summary(predictions,labels,prediction_dist,groundtruth_dist,pansharp,epoch,prediction_path,save_patches):
 
     if prediction_dist is None and groundtruth_dist is None:
-        fig,axs=plt.subplots(3, len(pansharp),figsize=(3*len(pansharp),9))
+#         fig,axs=plt.subplots(3, len(pansharp),figsize=(3*len(pansharp),9))
 
         labels=np.argmax(labels, 3) 
         logits=np.argmax(predictions, 3)
 
         for i in range(len(pansharp)):
 
-            axs[0,i].imshow(pansharp[i])
-            axs[1,i].imshow(labels[i]) 
-            axs[2,i].imshow(logits[i])
+#             axs[0,i].imshow(pansharp[i])
+#             axs[1,i].imshow(labels[i]) 
+#             axs[2,i].imshow(logits[i])
 
 
             if save_patches:
@@ -478,7 +478,7 @@ def plot_summary(predictions,labels,prediction_dist,groundtruth_dist,pansharp,ep
                 plt.imsave(prediction_path+epoch+'_Predictions_'+str(i)+'.jpg',logits[i])
     else:
         
-        fig,axs=plt.subplots(5, len(pansharp),figsize=(5*len(pansharp),15))
+#         fig,axs=plt.subplots(5, len(pansharp),figsize=(5*len(pansharp),15))
 
         labels_seg=np.argmax(labels, 3) 
         logits_seg=np.argmax(predictions, 3)
@@ -487,11 +487,11 @@ def plot_summary(predictions,labels,prediction_dist,groundtruth_dist,pansharp,ep
 
         for i in range(len(pansharp)):
 
-            axs[0,i].imshow(pansharp[i])
-            axs[1,i].imshow(labels_seg[i]) 
-            axs[2,i].imshow(logits_seg[i])
-            axs[3,i].imshow(labels_dist[i],cmap="jet")
-            axs[4,i].imshow(logits_dist[i],cmap="jet")
+#             axs[0,i].imshow(pansharp[i])
+#             axs[1,i].imshow(labels_seg[i]) 
+#             axs[2,i].imshow(logits_seg[i])
+#             axs[3,i].imshow(labels_dist[i],cmap="jet")
+#             axs[4,i].imshow(logits_dist[i],cmap="jet")
 
 
             if save_patches:
@@ -501,9 +501,9 @@ def plot_summary(predictions,labels,prediction_dist,groundtruth_dist,pansharp,ep
                 plt.imsave(prediction_path+epoch+'_Groundtruth_dist_'+str(i)+'.jpg',labels_dist[i],cmap="jet")
                 plt.imsave(prediction_path+epoch+'_Predictions_dist_'+str(i)+'.jpg',logits_dist[i],cmap="jet")
 
-    fig.canvas.draw()
-    time.sleep(4)
-    plt.close(fig)
+#     fig.canvas.draw()
+#     time.sleep(4)
+#     plt.close(fig)
     
 # def draw_update(loss,avg_loss_train,lr,fig,axs):
     
@@ -534,7 +534,7 @@ if __name__ == '__main__':
 
 #     python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_TEST/ RESUNET_ghana_test '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=3 --display_step=100 --rec_save_model=2000 --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
 
-# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_DIST/ RESUNET_spacenet_nodist '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=250 --display_step=1000 --rec_save_model=10000 --distance_net=True --iou_step=15 --lr_reduce_steps=1,5,50,100,200
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NODIST_true/ RESUNET_spacenet_nodist '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=250 --display_step=1000 --rec_save_model=10000 --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
 
 # python resunet_main_fin.py '' MODEL_SHAPE_DIST/ RESUNET_shape_test '' --input_channels=3 --nb_classes=2  --learning_rate=1e-2 --batch_size=32  --epochs=80 --display_step=100 --rec_save_model=2000 --distance_net=True --iou_step=10 --lr_reduce_steps=1,5,10,50,70
     
@@ -580,7 +580,7 @@ if __name__ == '__main__':
         elif arg.startswith('--rec_save_model'):
             REC_SAVE = int(arg[len('--rec_save_model='):])
         elif arg.startswith('--distance_net'):
-            DISTANCE_NET = bool(arg[len('--distance_net='):])
+            DISTANCE_NET = arg[len('--distance_net='):]
         elif arg.startswith('--iou_step'):
             IOU_STEP = int(arg[len('--iou_step='):])
         elif arg.startswith('--lr_reduce_steps'):
