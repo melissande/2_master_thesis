@@ -64,6 +64,7 @@ DEFAULT_FEATURES_ROOT=32
 DEFAULT_FILTERS_SIZE=3
 DEFAULT_LR=0.0001#0.0001
 DEFAULT_FILTER_WIDTH=3
+DEFAULT_BN=True
 
 ###Tune Learning rate
 REDUCE_LR_STEPS = [1,5, 50, 100,200] #reduce of half everytime
@@ -246,13 +247,14 @@ class Trainer(object):
             
             self.avg_loss_train.append(total_loss/train_loader.__len__())
             (self.file_train).write(str(total_loss/train_loader.__len__())+'\n')
+            (self.file_train).flush()
             logging.info(" Training {:}, Minibatch Loss= {:.4f}".format("epoch_%s"%epoch,total_loss/train_loader.__len__()))
             self.store_validation(val_loader,epoch,RBD,file_gson=TMP_IOU,save_patches=False)
             
     
         self.store_init_and_last(val_loader,'_last_',RBD,save_patches=True)
-        time.sleep(4)
-        plt.close(fig)
+#         time.sleep(4)
+#         plt.close(fig)
         return save_path, loss_train,self.avg_loss_train,self.loss_verif,self.IOU_verif,self.IOU_acc_verif,self.f1_IOU_verif      
         
     def output_training_stats(self, step, batch_x, batch_y,batch_y_dist=None):
@@ -286,6 +288,7 @@ class Trainer(object):
             Y = Variable(batch_y.float())
             Y=Y.cuda()
             if self.dist_net:
+                
                 y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
                 Y_dist = Variable(y_dist.float())
                 Y_dist=Y_dist.cuda()
@@ -304,6 +307,7 @@ class Trainer(object):
 
             
             else:
+ 
                 probs=predict(self.net,X)
                 loss=criterion(Y,probs)
                 
@@ -392,6 +396,7 @@ class Trainer(object):
         error_rate_v/=val_loader.__len__()
         self.loss_verif.append(loss_v)
         (self.file_verif).write(str(loss_v)+'\n')
+        (self.file_verif).flush()
         if (epoch+1)%self.IOU_STEP==0:
             iou_v/=val_loader.__len__()  
             iou_acc_v/=val_loader.__len__()  
@@ -403,8 +408,11 @@ class Trainer(object):
             
             
             (self.IOU_file_verif).write(str(iou_acc_v)+'\n')
+            (self.IOU_file_verif).flush()
             (self.IOU_acc_file_verif).write(str(iou_acc_v)+'\n')
+            (self.IOU_acc_file_verif).flush()
             (self.f1_IOU_file_verif).write(str(f1_v)+'\n')
+            (self.f1_IOU_file_verif).flush()
             
 
         logging.info("Verification  loss= {:.4f},error rate= {:.4f}%".format(loss_v,error_rate_v)) 
@@ -534,11 +542,19 @@ if __name__ == '__main__':
 
 #     python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_TEST/ RESUNET_ghana_test '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=3 --display_step=100 --rec_save_model=2000 --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
 
-# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NODIST_true/ RESUNET_spacenet_nodist '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=250 --display_step=1000 --rec_save_model=10000 --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NODIST2/ RESUNET_spacenet_nodist2 ''
+# --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
+# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
 
-# python resunet_main_fin.py '' MODEL_SHAPE_DIST/ RESUNET_shape_test '' --input_channels=3 --nb_classes=2  --learning_rate=1e-2 --batch_size=32  --epochs=80 --display_step=100 --rec_save_model=2000 --distance_net=True --iou_step=10 --lr_reduce_steps=1,5,10,50,70
+# python resunet_main_fin.py '' MODEL_SHAPE_NODIST/ RESUNET_shape_nodist '' --input_channels=3 --nb_classes=2  --learning_rate=1e-2 --batch_size=32  --epochs=80 
+#--display_step=50 --rec_save_model=2000 --distance_net=False --iou_step=5 --lr_reduce_steps=1,5,10,50,70
     
+
+
     
+# python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NOBN/ RESUNET_ghana_no_bn ''
+# # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=100 --rec_save_model=2000
+# # --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --batch_norm=False
     root_folder=sys.argv[1]
      ##########
     GLOBAL_PATH=sys.argv[2]
@@ -580,7 +596,9 @@ if __name__ == '__main__':
         elif arg.startswith('--rec_save_model'):
             REC_SAVE = int(arg[len('--rec_save_model='):])
         elif arg.startswith('--distance_net'):
-            DISTANCE_NET = arg[len('--distance_net='):]
+            DISTANCE_NET = eval(arg[len('--distance_net='):])
+        elif arg.startswith('--batch_norm'):
+            DEFAULT_BN = eval(arg[len('--batch_norm='):])
         elif arg.startswith('--iou_step'):
             IOU_STEP = int(arg[len('--iou_step='):])
         elif arg.startswith('--lr_reduce_steps'):
@@ -590,7 +608,7 @@ if __name__ == '__main__':
             raise ValueError('Unknown argument %s' % str(arg))
             
             
-    model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS)
+    model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
     
     if WEIGHTS_INIT:
         model.apply(weights_init)

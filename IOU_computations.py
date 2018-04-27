@@ -25,7 +25,7 @@ def vectorize_raster(geoJsonFileName,array2d,layerName="BuildingID",fieldName="B
     
     return
 def predict_score_batch(temporary_fold,batch_y,prediction):
-       
+    minPolygonSize=5
     
     tot_score_batch=0
     tot_f1_score_batch=0
@@ -39,6 +39,7 @@ def predict_score_batch(temporary_fold,batch_y,prediction):
         with open(temporary_fold+str(i)+'_test_pred.geojson') as f:
             geojson_prediction = json.load(f)
         
+
         
         M=len(geojson_prediction['features'])
         N=len(geojson_groundtruth['features'])
@@ -48,6 +49,7 @@ def predict_score_batch(temporary_fold,batch_y,prediction):
         for feature_pred in geojson_prediction['features']:   
             IoUs=[]
             IoUs_accu=[]
+            
 #             print(ogr.CreateGeometryFromJson(json.dumps(feature_pred['geometry'])).GetArea())
 #             print('Polygone')
             

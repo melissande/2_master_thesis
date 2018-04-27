@@ -7,23 +7,23 @@ from torch import nn
 from torch.nn import functional as F
 
 
-class double_conv(nn.Module):
-    """
-    block composed of two successive convolutions each followed by batch normalization and ReLU activation function
-    """
-    def __init__(self, in_ch, out_ch,width_kernel):
-        super(double_conv, self).__init__()
-        self.conv = nn.Sequential(
-            nn.Conv2d(in_ch, out_ch, width_kernel, padding=int((width_kernel-1)/2)),
-            nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(out_ch, out_ch, width_kernel, padding=int((width_kernel-1)/2)),
-            nn.BatchNorm2d(out_ch),
-            nn.ReLU(inplace=True)
-        )
-    def forward(self, x):
-        x = self.conv(x)
-        return x
+# class double_conv(nn.Module):
+#     """
+#     block composed of two successive convolutions each followed by batch normalization and ReLU activation function
+#     """
+#     def __init__(self, in_ch, out_ch,width_kernel):
+#         super(double_conv, self).__init__()
+#         self.conv = nn.Sequential(
+#             nn.Conv2d(in_ch, out_ch, width_kernel, padding=int((width_kernel-1)/2)),
+#             nn.BatchNorm2d(out_ch),
+#             nn.ReLU(inplace=True),
+#             nn.Conv2d(out_ch, out_ch, width_kernel, padding=int((width_kernel-1)/2)),
+#             nn.BatchNorm2d(out_ch),
+#             nn.ReLU(inplace=True)
+#         )
+#     def forward(self, x):
+#         x = self.conv(x)
+#         return x
 
 class inconv(nn.Module):
     """
@@ -82,10 +82,12 @@ class ResidualBlock(nn.Module):
             out = self.bn1(out)
         if self.dropout > 0:
             out = self.drop(out)
-        #out = self.relu(out)
+        out = self.relu(out) #to add for new version
         out = self.conv2(out)
         if self.batch_norm:
             out = self.bn2(out)
+        if self.dropout > 0: #to add for new version
+            out = self.drop(out)
         if self.downsample:
             residual = self.downsample(x)
         out += residual
