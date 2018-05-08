@@ -16,7 +16,8 @@ from IOU_computations import *
 from random import randint
 import time
 from shapeSorter import SimpleSegmentationDataset
-
+from data_augmentation import *
+from torchvision import transforms
 
 
 #####################################
@@ -29,11 +30,17 @@ if not os.path.exists(GLOBAL_PATH):
 
 
 ########Which model ?###############
-# from unet_val import UNet
-from unet_val_2 import UNet
 # from unet_meli import UNet,weights_init
 WEIGHTS_INIT=False
-
+# UNET_V=0
+# from unet_val import UNet
+#UNET_V=1
+from unet_val_2 import UNet
+UNET_V=2
+# from unet_val_gated_dilated import UNet
+# UNET_V=3
+# from unet_val_meli import UNet
+# UNET_V=4
 ####################################
 
 INPUT_CHANNELS=9 #3 for Shape dataset and 9 for Sat dataset
@@ -50,21 +57,28 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s %(message)s')
 
 ##############
 
-REC_SAVE=2000
-DROPOUT=0.2
+REC_SAVE=4000 #4000 for spacenet and 2000 for ghana
+DROPOUT=0.1 #0.1 for spacenet and  0.35 for ghana
 DEFAULT_BATCH_SIZE = 8# 32 for spacenet and 8 for ghana
-DEFAULT_EPOCHS =3
-DEFAULT_VALID=100 #around 1200 elements in ghana validation and 15000 in spacenet validation
-DISPLAY_STEP=100 #100
-IOU_STEP=2
+DEFAULT_EPOCHS =3 
+DEFAULT_VALID=32 #around 1200 elements in ghana validation and 15000 in spacenet validation
+DISPLAY_STEP=100 #100 for spacenet and ghana
+IOU_STEP=2 #15 for spacenet and ghana
+MAX_VAL_SIZE=200 #for shape otherwise None 
+MAX_TRAIN_SIZE=1000 # for shape otherwise None 
+
 
 ###############
 DEFAULT_LAYERS=3
 DEFAULT_FEATURES_ROOT=32
-DEFAULT_FILTERS_SIZE=3
-DEFAULT_LR=0.0001#0.0001
-DEFAULT_FILTER_WIDTH=3
 DEFAULT_BN=True
+
+#####
+
+
+DEFAULT_FILTER_WIDTH=3
+DEFAULT_PADDING=1
+DEFAULT_LR=1e-3#1e-3for spacenet and ghana  and 0.01 for shape
 
 ###Tune Learning rate
 REDUCE_LR_STEPS = [1,5, 50, 100,200] #reduce of half everytime
@@ -73,6 +87,20 @@ REDUCE_LR_STEPS = [1,5, 50, 100,200] #reduce of half everytime
 DISTANCE_NET=False
 BINS=15
 THRESHOLD=33
+
+###
+DEFAULT_HIDDEN_FEATURES=[32,64,128]
+DEFAULT_N_RESBLOCKS=1
+N_DILATED_CONV=3
+DEFAULT_GATED=False
+DEFAULT_GROUP_NORM=0
+
+####
+
+DEFAULT_HIDDEN_FEATURES_DILATED=[32,64,128]
+########
+DATA_AUG=None
+
 
 ####### TMP folder for IOU
 
@@ -169,7 +197,7 @@ class Trainer(object):
             
         ###Validation loader
         if data_provider_path=='': ##For Shape
-            val_generator=SimpleSegmentationDataset(SIZE_PATCH, 3, alpha =1.0,virtual_size=1200)#see tot val set in config
+            val_generator=SimpleSegmentationDataset(SIZE_PATCH, 3, alpha =1.0,virtual_size=MAX_VAL_SIZE)#see tot val set in config
         else: ##for sat data
             val_generator=Dataset_sat.from_root_folder(PATH_VALIDATION,self.nb_classes)
         
@@ -179,9 +207,9 @@ class Trainer(object):
         
         ###Training loader
         if data_provider_path=='':##For Shape
-            train_generator=SimpleSegmentationDataset(SIZE_PATCH, 3, alpha =1.0,virtual_size=4960)#4960
+            train_generator=SimpleSegmentationDataset(SIZE_PATCH, 3, alpha =1.0,virtual_size=MAX_TRAIN_SIZE)#4960
         else:
-            train_generator=Dataset_sat.from_root_folder(PATH_TRAINING,self.nb_classes)
+            train_generator=Dataset_sat.from_root_folder(PATH_TRAINING,self.nb_classes,transform=data_aug)
         
         train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=1)
         
@@ -546,15 +574,21 @@ if __name__ == '__main__':
 # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
 # --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200
 
-# python resunet_main_fin.py '' MODEL_SHAPE_NODIST/ RESUNET_shape_nodist '' --input_channels=3 --nb_classes=2  --learning_rate=1e-2 --batch_size=32  --epochs=80 
+# python resunet_main_fin.py '' MODEL_SHAPE_NODIST/ RESUNET_shape_nodist '' --input_channels=3 --nb_classes=2  --#learning_rate=1e-2 --batch_size=32  --epochs=80 
 #--display_step=50 --rec_save_model=2000 --distance_net=False --iou_step=5 --lr_reduce_steps=1,5,10,50,70
     
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_DILATE_UNET/ RESUNET_spacenet_dilated_unet ''
+# --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
+# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=3
 
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NO_DIST6/ RESUNET_spacenet_no_dist6 ''
+# --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
+# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.4 --unet_version=2
 
     
-# python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NOBN/ RESUNET_ghana_no_bn ''
+# python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NODATA_AUG/ RESUNET_ghana_nodata_aug ''
 # # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=100 --rec_save_model=2000
-# # --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --batch_norm=False
+# # --distance_net=False --iou_step=15 --lr_reduce_steps=1,50,100,200 --batch_norm=False --data_aug=no --dropout=0.35
     root_folder=sys.argv[1]
      ##########
     GLOBAL_PATH=sys.argv[2]
@@ -577,8 +611,14 @@ if __name__ == '__main__':
             INPUT_CHANNELS=int(arg[len('--input_channels='):])
         elif arg.startswith('--nb_classes'):
             NB_CLASSES=int(arg[len('--nb_classes='):])
+        elif arg.startswith('--unet_version'):
+            UNET_V=int(arg[len('--unet_version='):])
         elif arg.startswith('--nb_layers'):
             DEFAULT_LAYERS=int(arg[len('--nb_layers='):])
+        elif arg.startswith('--filter_width'):
+            DEFAULT_FILTER_WIDTH=int(arg[len('--filter_width='):])
+        elif arg.startswith('--padding_conv'):
+            DEFAULT_PADDING=int(arg[len('--padding_conv='):])
         elif arg.startswith('--nb_features_root'):
             DEFAULT_FEATURES_ROOT=int(arg[len('--nb_features_root='):])
         elif arg.startswith('--learning_rate'):
@@ -603,13 +643,36 @@ if __name__ == '__main__':
             IOU_STEP = int(arg[len('--iou_step='):])
         elif arg.startswith('--lr_reduce_steps'):
             REDUCE_LR_STEPS = np.asarray(arg[len('--lr_reduce_steps='):].split(',')).astype(int)
+        elif arg.startswith('--data_aug'):
+            if (arg[len('--data_aug='):].lower()=='yes'):
+                DATA_AUG=transforms.Compose([Rotate(90),Rescale(0.25),Flip(0.5),ToTensor()])
+            else:
+                DATA_AUG=None
             
         else:
             raise ValueError('Unknown argument %s' % str(arg))
-            
-            
-    model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
-    
+   
+
+    if UNET_V==0:
+        from unet_meli import UNet,weights_init ##my original version
+        WEIGHTS_INIT=True
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+    elif UNET_V==1:
+        from unet_val import UNet ##Original version with missing resl block first stage
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+    elif UNET_V==2:
+        from unet_val_2 import UNet ##original version but with res block first block and 1 dropout
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+    elif UNET_V==3:
+        from unet_val_gated_dilated import UNet ## gated dilated of valentin
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES,n_resblocks=DEFAULT_N_RESBLOCKS,num_dilated_convs=N_DILATED_CONV,dropout=DROPOUT,gated=DEFAULT_GATED,kernel_size=DEFAULT_FILTER_WIDTH,padding=DEFAULT_PADDING, group_norm=DEFAULT_GROUP_NORM)
+    elif UNET_V==4:
+        from unet_val_meli import UNet ##with extra dropout
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+    elif UNET_V==5:
+        from unet_dilated_meli import DilatedNetwork ## flat dilated meli
+        model=DilatedNetwork(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES_DILATED,n_resblocks=DEFAULT_N_RESBLOCKS, dropout=DROPOUT, padding=DEFAULT_PADDING, kernel_size=DEFAULT_FILTER_WIDTH,batch_norm=DEFAULT_BN)
+        
     if WEIGHTS_INIT:
         model.apply(weights_init)
 
@@ -619,7 +682,7 @@ if __name__ == '__main__':
 
     
     trainer=Trainer(model,DEFAULT_BATCH_SIZE,DEFAULT_LR,NB_CLASSES)
-    save_path,loss_train,avg_loss_train,loss_verif,iou_verif,iou_acc_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE,DISTANCE_NET,THRESHOLD,BINS,IOU_STEP,REDUCE_LR_STEPS)
+    save_path,loss_train,avg_loss_train,loss_verif,iou_verif,iou_acc_verif,f1_iou_verif=trainer.train( root_folder, MODEL_PATH_SAVE, MODEL_PATH_RESTORE,DEFAULT_EPOCHS,DROPOUT, DISPLAY_STEP, DEFAULT_VALID,REC_SAVE, TEST_SAVE,DISTANCE_NET,THRESHOLD,BINS,IOU_STEP,REDUCE_LR_STEPS,DATA_AUG)
     print('Last model saved is %s: '%save_path)
     
 #     fig, axs = plt.subplots(5, sharex=True)

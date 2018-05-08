@@ -86,8 +86,8 @@ class ResidualBlock(nn.Module):
         out = self.conv2(out)
         if self.batch_norm:
             out = self.bn2(out)
-        if self.dropout > 0: #to add for new version
-            out = self.drop(out)
+#         if self.dropout > 0: #to add for new version
+#             out = self.drop(out)
         if self.downsample:
             residual = self.downsample(x)
         out += residual

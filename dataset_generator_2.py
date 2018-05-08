@@ -50,6 +50,8 @@ class Dataset_sat(Dataset):
         self.paths_output = paths_output
         self.nb_classes=nb_classes
         self.transform = transform
+#         self.file_check=open('check.txt','w')
+
     @classmethod
     def from_root_folder(cls, root_folder: str, nb_classes: int,*,transform=None, max_data_size:  int = None):
         paths_input = []
@@ -63,8 +65,8 @@ class Dataset_sat(Dataset):
 
             paths_output.append(os.path.join(root_folder+PATH_OUTPUT, filename))
         
-        
-        return Dataset_sat(np.asarray(paths_input), np.asarray(paths_output),nb_classes)
+
+        return Dataset_sat(np.asarray(paths_input), np.asarray(paths_output),nb_classes,transform)
 
     def __len__(self):
         return len(self.paths_input)
@@ -73,11 +75,14 @@ class Dataset_sat(Dataset):
 
     def __getitem__(self, idx):
         
-        X,Y=_parse_image(self.paths_input[idx],self.paths_output[idx],self.nb_classes)     
+        X,Y=_parse_image(self.paths_input[idx],self.paths_output[idx],self.nb_classes)
         sample = {'input': X, 'groundtruth': Y}
 
+#         self.file_check.write(str(self.paths_input[idx].split('input_')[-1:]))
+ 
         if self.transform:
             sample = self.transform(sample)
+  
 
         return sample
 
