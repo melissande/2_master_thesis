@@ -41,19 +41,21 @@ class ResidualBlock(nn.Module):
         self.conv1 = nn.Conv2d(num_filters, num_hidden_filters, kernel_size=kernel_size,stride=1,padding=padding,dilation=dilation )
         self.dropout = nn.Dropout2d(dropout)
         self.nonlinearity = nonlinearity(inplace=False)
-        self.batch_norm1 = batchNormObject(num_hidden_filters)
+#         self.batch_norm1 = batchNormObject(num_hidden_filters)
+        self.batch_norm1 = nn.BatchNorm2d(num_hidden_filters)
         self.conv2 = nn.Conv2d(num_hidden_filters, num_hidden_filters, kernel_size=kernel_size,stride=1,padding=padding,dilation=dilation )
-        self.batch_norm2 = batchNormObject(num_filters)
+        self.batch_norm2 = nn.BatchNorm2d(num_filters)
+#         self.batch_norm2 = batchNormObject(num_filters)
 
     def forward(self, og_x):
         x = og_x
         x = self.dropout(x)
         x = self.conv1(og_x)
-        #x = self.batch_norm1(x)
+        x = self.batch_norm1(x)
         x = self.nonlinearity(x)
         x = self.conv2(x)
         out = og_x + x
-        #out = self.batch_norm2(out)
+        out = self.batch_norm2(out)
         out = self.nonlinearity(out)
         return out
     

@@ -3,7 +3,7 @@ import numpy as np
 import os
 import cv2
 import logging
-from image_utils import standardize,distance_map_batch
+from image_utils import standardize,distance_map_batch,distance_map_batch_v2
 import matplotlib.pyplot as plt
 import torch
 import torch.nn as nn
@@ -61,7 +61,7 @@ REC_SAVE=4000 #4000 for spacenet and 2000 for ghana
 DROPOUT=0.1 #0.1 for spacenet and  0.35 for ghana
 DEFAULT_BATCH_SIZE = 8# 32 for spacenet and 8 for ghana
 DEFAULT_EPOCHS =3 
-DEFAULT_VALID=32 #around 1200 elements in ghana validation and 15000 in spacenet validation
+DEFAULT_VALID=32#32 #around 1200 elements in ghana validation and 15000 in spacenet validation
 DISPLAY_STEP=100 #100 for spacenet and ghana
 IOU_STEP=2 #15 for spacenet and ghana
 MAX_VAL_SIZE=200 #for shape otherwise None 
@@ -84,12 +84,18 @@ DEFAULT_LR=1e-3#1e-3for spacenet and ghana  and 0.01 for shape
 REDUCE_LR_STEPS = [1,5, 50, 100,200] #reduce of half everytime
 
 ################
-DISTANCE_NET=False
-BINS=15
-THRESHOLD=33
+
+# DISTANCE_NET='v1'
+# BINS=15
+# THRESHOLD=33
+
+# DISTANCE_NET='v2'
+BINS=10
+THRESHOLD=20
+DISTANCE_NET=None
 
 ###
-DEFAULT_HIDDEN_FEATURES=[32,64,128]
+DEFAULT_HIDDEN_FEATURES=[32,64,128,256]
 DEFAULT_N_RESBLOCKS=1
 N_DILATED_CONV=3
 DEFAULT_GATED=False
@@ -97,7 +103,7 @@ DEFAULT_GROUP_NORM=0
 
 ####
 
-DEFAULT_HIDDEN_FEATURES_DILATED=[32,64,128]
+DEFAULT_HIDDEN_FEATURES_DILATED=[16,32,64,128]
 ########
 DATA_AUG=None
 
@@ -109,7 +115,7 @@ if not os.path.exists(TMP_IOU):
             os.makedirs(TMP_IOU)
 
 #######  Data
-#     root_folder ='/scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/'
+#     root_folder ='../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/'
 root_folder = '../2_DATA_GHANA/DATASET/120_x_120_8_pansh/'
 # root_folder=''
 
@@ -148,6 +154,7 @@ class Trainer(object):
         self.bins=bins
         self.dist_net=dist_net
         
+        
     def train(self, data_provider_path, save_path='', restore_path='',  epochs=3, dropout=0.2, display_step=100, validation_batch_size=30,rec_save=2000, prediction_path = '',dist_net=False,threshold=20,bins=15,iou_step=1,reduce_lr_steps=[1,10,100,200],data_aug=None):
         """
         Lauches the training process
@@ -171,7 +178,6 @@ class Trainer(object):
 #         fig,axs =plt.subplots(1, 3,figsize=(9,3))
 #         draw_update([],[],[],fig,axs)
         
-       
         
         if epochs == 0:
             return save_path
@@ -211,6 +217,7 @@ class Trainer(object):
         else:
             train_generator=Dataset_sat.from_root_folder(PATH_TRAINING,self.nb_classes,transform=data_aug)
         
+        
         train_loader = DataLoader(train_generator, batch_size=self.batch_size,shuffle=True, num_workers=1)
         
         
@@ -237,9 +244,11 @@ class Trainer(object):
                 Y=Y.cuda()
                 
                 ## fwd
-                if self.dist_net:
-                    
-                    Y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+                if self.dist_net=='v1' or self.dist_net=='v2':
+                    if self.dist_net=='v1':
+                        Y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+                    if self.dist_net=='v2':
+                        Y_dist=distance_map_batch_v2(batch_y,self.threshold,self.bins)
                     Y_dist = Variable(Y_dist.float())
                     Y_dist=Y_dist.cuda()
     
@@ -287,7 +296,7 @@ class Trainer(object):
         
     def output_training_stats(self, step, batch_x, batch_y,batch_y_dist=None):
         # Calculate batch loss and accuracy
-        if self.dist_net:
+        if self.dist_net=='v1' or self.dist_net=='v2':
             predictions_dist,predictions_seg=predict(self.net,batch_x,self.dist_net)
             loss_seg=criterion(batch_y,predictions_seg)
             loss_dist=criterion(batch_y_dist,predictions_dist)
@@ -308,16 +317,20 @@ class Trainer(object):
         error_rate_v=0
         
         for i_batch,sample in enumerate(val_loader):
+            
             batch_x=standardize(sample['input'])
             batch_y=sample['groundtruth']
-            
             X = Variable(batch_x.float())
             X=X.permute(0,3,1,2).cuda()  
             Y = Variable(batch_y.float())
             Y=Y.cuda()
-            if self.dist_net:
-                
-                y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+            if self.dist_net=='v1' or self.dist_net=='v2':
+                if self.dist_net=='v1':
+                    
+                    y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+                if self.dist_net=='v2':
+                    y_dist=distance_map_batch_v2(batch_y,self.threshold,self.bins)
+     
                 Y_dist = Variable(y_dist.float())
                 Y_dist=Y_dist.cuda()
                 
@@ -379,8 +392,12 @@ class Trainer(object):
             X=X.permute(0,3,1,2).cuda()  
             Y = Variable(batch_y.float())
             Y=Y.cuda()
-            if self.dist_net:
-                y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+            if self.dist_net=='v1' or self.dist_net=='v2':
+                if self.dist_net=='v1':
+                    
+                    y_dist=distance_map_batch(batch_y,self.threshold,self.bins)
+                if self.dist_net=='v2':
+                    y_dist=distance_map_batch_v2(batch_y,self.threshold,self.bins)
                 Y_dist = Variable(y_dist.float())
                 Y_dist=Y_dist.cuda()
                 probs_dist,probs_seg=predict(self.net,X,self.dist_net)
@@ -581,14 +598,18 @@ if __name__ == '__main__':
 # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
 # --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=3
 
-# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NO_DIST6/ RESUNET_spacenet_no_dist6 ''
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_DIST_v2/ RESUNET_spacenet_dist_v2 ''
 # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
-# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.4 --unet_version=2
+# --distance_net=v2 --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.3 --unet_version=2
 
-    
-# python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NODATA_AUG/ RESUNET_ghana_nodata_aug ''
-# # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=100 --rec_save_model=2000
-# # --distance_net=False --iou_step=15 --lr_reduce_steps=1,50,100,200 --batch_norm=False --data_aug=no --dropout=0.35
+# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_UNET_DILATED_2/ RESUNET_spacenet_unet_dilated_2 ''
+# --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
+# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.3 --unet_version=3
+
+
+# python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NODIST_NODATA_AUG/ RESUNET_ghana_nodata_aug ''
+# # --input_channels=9 --nb_classes=2  --learning_rate=1e-4 --batch_size=8  --epochs=150 --display_step=100 --rec_save_model=2000
+# # --distance_net=None --iou_step=15 --lr_reduce_steps=1,50,100,200 --batch_norm=True --data_aug=no --dropout=0.5
     root_folder=sys.argv[1]
      ##########
     GLOBAL_PATH=sys.argv[2]
@@ -636,7 +657,20 @@ if __name__ == '__main__':
         elif arg.startswith('--rec_save_model'):
             REC_SAVE = int(arg[len('--rec_save_model='):])
         elif arg.startswith('--distance_net'):
-            DISTANCE_NET = eval(arg[len('--distance_net='):])
+            DISTANCE_NET = arg[len('--distance_net='):]
+            if DISTANCE_NET=='v1':
+                BINS=15
+                THRESHOLD=33
+                DISTANCE_NET_UNET=True
+            elif DISTANCE_NET=='v2':
+                BINS=10
+                THRESHOLD=20
+                DISTANCE_NET_UNET=True
+            elif DISTANCE_NET=='None':
+                DISTANCE_NET=None
+                DISTANCE_NET_UNET=False
+            else:
+                raise ValueError('Unknown argument %s' % str(arg))
         elif arg.startswith('--batch_norm'):
             DEFAULT_BN = eval(arg[len('--batch_norm='):])
         elif arg.startswith('--iou_step'):
@@ -645,9 +679,11 @@ if __name__ == '__main__':
             REDUCE_LR_STEPS = np.asarray(arg[len('--lr_reduce_steps='):].split(',')).astype(int)
         elif arg.startswith('--data_aug'):
             if (arg[len('--data_aug='):].lower()=='yes'):
-                DATA_AUG=transforms.Compose([Rotate(90),Rescale(0.25),Flip(0.5),ToTensor()])
-            else:
+                DATA_AUG=transforms.Compose([Rotate(90),Flip(0.5),ToTensor()])
+            elif (arg[len('--data_aug='):].lower()=='no'):
                 DATA_AUG=None
+            else:
+                raise ValueError('Unknown argument %s' % str(arg))
             
         else:
             raise ValueError('Unknown argument %s' % str(arg))
@@ -656,19 +692,19 @@ if __name__ == '__main__':
     if UNET_V==0:
         from unet_meli import UNet,weights_init ##my original version
         WEIGHTS_INIT=True
-        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==1:
         from unet_val import UNet ##Original version with missing resl block first stage
-        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==2:
         from unet_val_2 import UNet ##original version but with res block first block and 1 dropout
-        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==3:
         from unet_val_gated_dilated import UNet ## gated dilated of valentin
         model=UNet(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES,n_resblocks=DEFAULT_N_RESBLOCKS,num_dilated_convs=N_DILATED_CONV,dropout=DROPOUT,gated=DEFAULT_GATED,kernel_size=DEFAULT_FILTER_WIDTH,padding=DEFAULT_PADDING, group_norm=DEFAULT_GROUP_NORM)
     elif UNET_V==4:
         from unet_val_meli import UNet ##with extra dropout
-        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET,bins=BINS,batch_norm=DEFAULT_BN)
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==5:
         from unet_dilated_meli import DilatedNetwork ## flat dilated meli
         model=DilatedNetwork(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES_DILATED,n_resblocks=DEFAULT_N_RESBLOCKS, dropout=DROPOUT, padding=DEFAULT_PADDING, kernel_size=DEFAULT_FILTER_WIDTH,batch_norm=DEFAULT_BN)

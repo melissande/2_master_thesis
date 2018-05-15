@@ -3,8 +3,8 @@ import os
 import tensorflow as tf
 from numpy import newaxis
 
-WIDTH=120
-STRIDE=120
+WIDTH=128
+STRIDE=128
 
 def extract_patches(sess,data,width,stride):
     '''
@@ -24,9 +24,9 @@ def extract_patches(sess,data,width,stride):
     print('%d patches of size %d x %d created as list'%(Data_o.shape[0],Data_o.shape[1],Data_o.shape[2]))
     return Data_o
     
-path_raw='/scratch/SPACENET_DATA_PROCESSED/RAW_IMAGES/'
+path_raw='../SPACENET_DATA/SPACENET_DATA_PROCESSED/RAW_IMAGES/'
 
-path_dataset='/scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/'
+path_dataset='../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/'
 if not os.path.exists(path_dataset):
         os.makedirs(path_dataset)
 

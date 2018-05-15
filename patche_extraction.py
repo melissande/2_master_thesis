@@ -23,8 +23,8 @@ NAME_PANSHARP='pansharp.tif'
 NAME_MS='ms.tif'
 NAME_LABELS='groundtruth.png'
 
-WIDTH=120
-STRIDE=120
+WIDTH=256
+STRIDE=256
 '''
 All the lines with display have been commented at the scripts were launched on command line remote server so the display was not available
 '''
@@ -115,7 +115,7 @@ if __name__ == '__main__':
     print('Final size of the dataset is %d'%len(keep))
     ## Save Panchromatic
     panchromatic=panchromatic[keep]
-#     save_patches(panchromatic,path_patches+'panchro.h5') 
+    save_patches(panchromatic,path_patches+'panchro.h5') 
 #     plt.imshow(panchromatic[patch_test_number,:,:,0])
 #     plt.show()
             
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         ms_hr=prepare_ms_hr(ms_i[newaxis,:,:,newaxis],hr_size)
         ms_hr=extract_patches(ms_hr,WIDTH,STRIDE)
         ms_hr=ms_hr[keep]
-#         save_patches(ms_hr,path_patches+'ms_hr_'+str(i)+'.h5')
+        save_patches(ms_hr,path_patches+'ms_hr_'+str(i)+'.h5')
 #         plt.imshow(ms_hr[patch_test_number,:,:,0])
 #         plt.show()
 
@@ -149,7 +149,7 @@ if __name__ == '__main__':
         pansharpened_i=pansharpened[:,:,i]
         pansharpened_i=extract_patches(pansharpened_i[newaxis,:,:,newaxis],WIDTH,STRIDE)
         pansharpened_i=pansharpened_i[keep]
-#         save_patches(pansharpened_i,path_patches+'pansharpened_'+str(i)+'.h5')
+        save_patches(pansharpened_i,path_patches+'pansharpened_'+str(i)+'.h5')
 #         plt.imshow(pansharpened_i[patch_test_number,:,:,0])
 #         plt.show()
         
@@ -162,7 +162,7 @@ if __name__ == '__main__':
     print('\n LABELS \n\n')
     labels=extract_patches(labels,WIDTH,STRIDE)
     labels=labels[keep]
-#     save_patches(labels,path_patches+'groundtruth.h5')
+    save_patches(labels,path_patches+'groundtruth.h5')
 #     plt.imshow(labels[patch_test_number,:,:,0])
 #     plt.show()
     

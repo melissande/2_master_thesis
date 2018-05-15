@@ -15,22 +15,25 @@ class Flip(object):
 
     def __call__(self, sample):
         X, Y = sample['input'], sample['groundtruth']
+        Y=np.argmax(Y, 2)[:,:,newaxis]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X))*255,(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))*255
-        seq = iaa.Sequential([iaa.Fliplr(self.ratio),iaa.Flipud(self.ratio)])
+        seq = iaa.OneOf([iaa.Fliplr(self.ratio),iaa.Flipud(self.ratio)])
         data_tot=np.concatenate((X.astype('uint8'),Y.astype('uint8')),axis=2)
         data_tot=seq.augment_images(data_tot[newaxis,:,:,:])
         data_tot=np.squeeze(data_tot)
         X=data_tot[:,:,:X.shape[2]]
-        Y=data_tot[:,:,X.shape[2]:]
+        Y=data_tot[:,:,-1]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X)),(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))
-
+        Y_build=(Y>0).astype(int)
+        Y_other= (1-Y_build).astype(int)
+        Y=np.stack((Y_other,Y_build),axis=2)
         return {'input': X, 'groundtruth': Y}
 
 class Rotate(object):
     """Rotate of random angle between 0 and max_rot of the image
 
     Args:
-        max_rot (int): how much of the image is rotated
+        max_rot (int): how much of the image is rotated (+max_rot and -max_rot)
     """
 
     def __init__(self,max_rot):
@@ -39,14 +42,18 @@ class Rotate(object):
 
     def __call__(self, sample):
         X, Y = sample['input'], sample['groundtruth']
+        Y=np.argmax(Y, 2)[:,:,newaxis]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X))*255,(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))*255
-        seq = iaa.Sequential(iaa.Affine(rotate=(0, self.max_rot)))
+        seq = iaa.OneOf(iaa.Affine(rotate=self.max_rot),iaa.Affine(rotate=-self.max_rot))
         data_tot=np.concatenate((X.astype('uint8'),Y.astype('uint8')),axis=2)
         data_tot=seq.augment_images(data_tot[newaxis,:,:,:])
         data_tot=np.squeeze(data_tot)
         X=data_tot[:,:,:X.shape[2]]
-        Y=data_tot[:,:,X.shape[2]:]
+        Y=data_tot[:,:,-1]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X)),(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))
+        Y_build=(Y>0).astype(int)
+        Y_other= (1-Y_build).astype(int)
+        Y=np.stack((Y_other,Y_build),axis=2)
         return {'input': X, 'groundtruth': Y}
     
     
@@ -62,14 +69,18 @@ class Rescale(object):
         
     def __call__(self, sample):
         X, Y = sample['input'], sample['groundtruth']
+        Y=np.argmax(Y, 2)[:,:,newaxis]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X))*255,(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))*255
-        seq = iaa.Sequential(iaa.CropAndPad(percent=(-self.ratio, self.ratio)))
+        seq = iaa.CropAndPad(percent=(-self.ratio, self.ratio))
         data_tot=np.concatenate((X.astype('uint8'),Y.astype('uint8')),axis=2)
         data_tot=seq.augment_images(data_tot[newaxis,:,:,:])
         data_tot=np.squeeze(data_tot)
         X=data_tot[:,:,:X.shape[2]]
-        Y=data_tot[:,:,X.shape[2]:]
+        Y=data_tot[:,:,-1]
         X,Y=(X-np.amin(X))/(np.amax(X)-np.amin(X)),(Y-np.amin(Y))/(np.amax(Y)-np.amin(Y))
+        Y_build=(Y>0).astype(int)
+        Y_other= (1-Y_build).astype(int)
+        Y=np.stack((Y_other,Y_build),axis=2)
         return {'input': X, 'groundtruth': Y}
     
 class ToTensor(object):
