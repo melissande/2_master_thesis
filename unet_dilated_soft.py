@@ -140,7 +140,7 @@ class DilatedConvolutions2(nn.Module):
         self.downsamples=nn.ModuleList()
         
         for (features_in,features_out),d in zip([self.filters[i:i+2] for i in range(0,len(self.filters), 1)][:-1],self.dilatations):
-                
+
             self.stages.append(nn.Sequential(nn.Conv2d(features_in, features_out, kernel_size=kernel_size,stride=1, padding=d,dilation=d),nn.BatchNorm2d(features_out),nn.ReLU()))
             if (features_out != n_channels):
                 self.downsamples.append(nn.Sequential(nn.Conv2d(features_out, n_channels, kernel_size,stride=1,padding=1),

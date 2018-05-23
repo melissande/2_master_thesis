@@ -602,9 +602,7 @@ if __name__ == '__main__':
 # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
 # --distance_net=v2 --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.3 --unet_version=2
 
-# python resunet_main_fin.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_UNET_DILATED_2/ RESUNET_spacenet_unet_dilated_2 ''
-# --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000
-# --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.3 --unet_version=3
+# python resunet_main_fin.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_TEST_IOU_DOWN/ RESUNET_model_spacenet_test_iou_down '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --rec_save_model=4000 --distance_net=False --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=2
 
 
 # python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NODIST_NODATA_AUG/ RESUNET_ghana_nodata_aug ''

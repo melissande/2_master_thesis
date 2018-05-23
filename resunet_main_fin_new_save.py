@@ -94,18 +94,21 @@ THRESHOLD=20
 DISTANCE_NET=None
 
 ###
-DEFAULT_HIDDEN_FEATURES=[32,64]
+
 DEFAULT_N_RESBLOCKS=1
-N_DILATED_CONV=3
+DEFAULT_HIDDEN_FEATURES_DILATED=[16,32,64,128]
+
 DEFAULT_GATED=False
 DEFAULT_GROUP_NORM=0
 
 ####
-
-DEFAULT_HIDDEN_FEATURES_DILATED=[16,32,64,128]
+DEFAULT_HIDDEN_FEATURES=[32,64]
 ########
 DATA_AUG=None
-
+#####
+# DEFAULT_HIDDEN_FEATURES_GATED_DILATED=[32,64,128,256]
+DEFAULT_HIDDEN_FEATURES_GATED_DILATED=[32,64]
+N_DILATED_CONV=3#0
 
 ####### TMP folder for IOU
 
@@ -588,8 +591,34 @@ if __name__ == '__main__':
 
 # python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_NODIST_NEW_SAVE/ RESUNET_spacenet_nodist_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=6
 
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_NODIST_120_NEW_SAVE/ RESUNET_spacenet_nodist_120_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=6
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_NODIST_NEW_SAVE/ RESUNET_spacenet_nodist_new_save_restored MODEL_SPACENET_NODIST_NEW_SAVE/RESUNET_spacenet_nodist_new_saveCP149.pth --input_channels=9 --nb_classes=2  --learning_rate=1e-4 --batch_size=32  --epochs=80 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=50 --dropout=0.25 --unet_version=6
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_NODIST_l304_D35_NEW_SAVE/ RESUNET_spacenet_nodist_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-4 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=6
+
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_NODIST_NEW_SAVE_v2/ RESUNET_spacenet_nodist_new_save_v2 '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=2
+
+
+
+
 
 # python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_DIST_NEW_SAVE/ RESUNET_spacenet_dist_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net='v1' --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=6
+
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_DIST_LR04_D35_NEW_SAVE/ RESUNET_spacenet_dist_lr04_d35_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-4 --batch_size=32  --epochs=150 --display_step=500 --distance_net='v1' --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=6
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_DIST_NEW_SAVE_v2/ RESUNET_spacenet_dist_new_save_v2 '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net='v1' --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=2
+
+
+# python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_GATED_DILATED_UNET_NORMAL/ RESUNET_spacenet_gated_dilated_unet_normal '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=5
+
 
 # python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_DIST_v2_NEW_SAVE/ RESUNET_spacenet_dist_v2_new_save ''
 # --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500
@@ -608,12 +637,36 @@ if __name__ == '__main__':
 #--distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=5
     
 #  python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_UNET_DILATED_SOFT_NEW_SAVE/ RESUNET_spacenet_unet_dilated_soft_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=7
-    
 
+#  python resunet_main_fin_new_save.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/128_x_128_8_bands_pansh/ MODEL_SPACENET_V9_NEW_SAVE/ RESUNET_spacenet_v9_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=32  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.25 --unet_version=9
+    
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_VAL_2_ORIG_NEW_SAVE/ RESUNET_ghana_val_2_orig_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=2
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_V8_NEW_SAVE/ RESUNET_ghana_v8_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=8
+
+
+
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_GD_NODILATED_NEW_SAVE/ RESUNET_ghana_gd_nodilated_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=3
 
 # python resunet_main_fin.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_GHANA_NODIST_NODATA_AUG/ RESUNET_ghana_nodata_aug ''
 # # --input_channels=9 --nb_classes=2  --learning_rate=1e-4 --batch_size=8  --epochs=150 --display_step=100 --rec_save_model=2000
 # # --distance_net=None --iou_step=15 --lr_reduce_steps=1,50,100,200 --batch_norm=True --data_aug=no --dropout=0.5
+
+
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/128_x_128_8_pansh/ MODEL_GHANA_DNV1_NEW_SAVE/ RESUNET_ghana_dnv1_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=5
+
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/128_x_128_8_pansh/ MODEL_GHANA_RUDV1_NEW_SAVE/ RESUNET_ghana_rudv1_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=7
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/128_x_128_8_pansh/ MODEL_GHANA_RUDV2_NEW_SAVE/ RESUNET_ghana_rudv2_new_save '' --input_channels=9 --nb_classes=2  --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net=None --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=3
+
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/128_x_128_8_pansh/ MODEL_GHANA_RUBV3D1_NEW_SAVE/ RESUNET_ghana_rubv3d1_new_save '' --input_channels=9 --nb_classes=2 --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net='v1' --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=2
+
+# python resunet_main_fin_new_save.py ../2_DATA_GHANA/DATASET/128_x_128_8_pansh/ MODEL_GHANA_RUBV3D2_NEW_SAVE/ RESUNET_ghana_rubv3d2_new_save '' --input_channels=9 --nb_classes=2 --learning_rate=1e-3 --batch_size=8  --epochs=150 --display_step=500 --distance_net='v2' --iou_step=15 --lr_reduce_steps=1,5,50,100,200 --dropout=0.35 --unet_version=2
+
     root_folder=sys.argv[1]
      ##########
     GLOBAL_PATH=sys.argv[2]
@@ -704,12 +757,12 @@ if __name__ == '__main__':
         model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==3:
         from unet_val_gated_dilated import UNet ## gated dilated of valentin
-        model=UNet(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES,n_resblocks=DEFAULT_N_RESBLOCKS,num_dilated_convs=N_DILATED_CONV,dropout=DROPOUT,gated=DEFAULT_GATED,kernel_size=DEFAULT_FILTER_WIDTH,padding=DEFAULT_PADDING, group_norm=DEFAULT_GROUP_NORM)
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES_GATED_DILATED,n_resblocks=DEFAULT_N_RESBLOCKS,num_dilated_convs=N_DILATED_CONV,dropout=DROPOUT,gated=DEFAULT_GATED,kernel_size=DEFAULT_FILTER_WIDTH,padding=DEFAULT_PADDING, group_norm=DEFAULT_GROUP_NORM)
     elif UNET_V==4:
         from unet_val_meli import UNet ##with extra dropout
         model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero =DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
     elif UNET_V==5:
-        from unet_dilated_meli import DilatedNetwork ## flat dilated meli
+        from unet_dilated_meli import DilatedNetwork ## flat unet dilated meli
         model=DilatedNetwork(INPUT_CHANNELS,NB_CLASSES,num_hidden_features=DEFAULT_HIDDEN_FEATURES_DILATED,n_resblocks=DEFAULT_N_RESBLOCKS, dropout=DROPOUT, padding=DEFAULT_PADDING, kernel_size=DEFAULT_FILTER_WIDTH,batch_norm=DEFAULT_BN)
     elif UNET_V==6:
         from unet_baseline_fin import UNet ##original version but with res block first block and 1 dropout
@@ -717,6 +770,13 @@ if __name__ == '__main__':
     elif UNET_V==7:
         from unet_dilated_soft import UNet
         model=UNet(INPUT_CHANNELS,NB_CLASSES,num_hidden_features =DEFAULT_HIDDEN_FEATURES,n_resblocks=DEFAULT_N_RESBLOCKS,dropout=DROPOUT,kernel_size=DEFAULT_FILTER_WIDTH,padding=DEFAULT_PADDING, group_norm=DEFAULT_GROUP_NORM)
+        
+    elif UNET_V==8:
+        from unet_baseline_fin_v2 import UNet ##original version but with res block first block and 1 dropout shifted after res
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero=DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
+    elif UNET_V==9:
+        from unet_val_22 import UNet ##original version but with res block first block and 1 dropout shifted after res
+        model=UNet(INPUT_CHANNELS,NB_CLASSES,depth =DEFAULT_LAYERS,n_features_zero=DEFAULT_FEATURES_ROOT,width_kernel=DEFAULT_FILTER_WIDTH,dropout=DROPOUT,distance_net=DISTANCE_NET_UNET,bins=BINS,batch_norm=DEFAULT_BN)
         
     if WEIGHTS_INIT:
         model.apply(weights_init)

@@ -404,7 +404,7 @@ if __name__ == '__main__':
 #python resunet_main.py ../2_DATA_GHANA/DATASET/120_x_120_8_pansh/ MODEL_w3_GHANA/ RESUNET_w3_ghana.ckpt '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-3 --batch_size=8  --epochs=200 --dropout=0.1 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
     
     
-# python resunet_main.py /scratch/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_TRANSFER_SPACENET/ RESUNET_transfer_spacenet '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-4 --batch_size=32  --epochs=1 --dropout=0.2 --display_step=100 --validation_size_batch=100 --rec_save_model=2000
+# python resunet_main.py ../SPACENET_DATA/SPACENET_DATA_PROCESSED/DATASET/120_x_120_8_bands_pansh/ MODEL_SPACENET_TEST_IOU_DOWN/ RESUNET_model_spacenet_test_iou_down '' --input_channels=9 --nb_classes=2 --nb_layers=3 --nb_features_root=32  --learning_rate=1e-3 --batch_size=32  --epochs=150 --dropout=0.25 --display_step=500 --rec_save_model=4000
 
 
     root_folder=sys.argv[1]
